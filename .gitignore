@@ -1,0 +1,26 @@
+# terraform
+.terraform/
+# NB: .terraform.lock.hcl IS committed on purpose — pins provider versions across Jenkins
+# workspaces, which get a fresh `terraform init` every build.
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+*.auto.tfvars
+backend.hcl
+crash.log
+
+# build artifacts / local scratch
+out/
+*.tar.gz
+*.sha256
+.upstream-inspect/
+
+# notes, not for publication
+README.md
+
+# secrets / creds — never commit
+*.pem
+*-key
+.env
+credentials

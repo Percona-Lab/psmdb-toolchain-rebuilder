@@ -1,0 +1,5 @@
+# Copy to backend.hcl (gitignored) and fill in the account id.
+# The same role the provider assumes via TF_VAR_assume_role_arn.
+assume_role = {
+  role_arn = "arn:aws:iam::<ACCOUNT_ID>:role/psmdb-toolchain-rebuilder-tf"
+}

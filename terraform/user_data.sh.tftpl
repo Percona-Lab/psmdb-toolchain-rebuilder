@@ -1,0 +1,31 @@
+#!/bin/bash
+# launch-template bootstrap, 16KB cap; values are Terraform-injected
+set -euxo pipefail
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update -qq
+apt-get install -y -qq git jq docker.io e2fsprogs curl unzip
+systemctl enable --now docker
+
+# ubuntu 24.04 has no awscli package
+if ! command -v aws >/dev/null 2>&1; then
+  curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o /tmp/awscliv2.zip
+  unzip -q /tmp/awscliv2.zip -d /tmp
+  /tmp/aws/install
+fi
+
+mkdir -p /opt/rebuilder
+# we may boot before Jenkins stages it
+until aws s3 cp "s3://${bucket}/${scripts_key}" /tmp/scripts.tar.gz --region ${region}; do
+  echo "waiting for scripts bundle s3://${bucket}/${scripts_key} ..."; sleep 15
+done
+tar -xzf /tmp/scripts.tar.gz -C /opt/rebuilder
+chmod +x /opt/rebuilder/*.sh
+
+VOLUME_ID=${volume_id} \
+S3_BUCKET=${bucket} \
+UPSTREAM_URL=${upstream_url} \
+UPSTREAM_REGION=${upstream_region} \
+ASG_NAME=${asg_name} \
+AWS_REGION=${region} \
+  /opt/rebuilder/rebuild-on-boot.sh 2>&1 | tee /var/log/rebuild.log

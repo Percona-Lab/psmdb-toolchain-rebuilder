@@ -1,0 +1,35 @@
+- job:
+    name: rebuild-psmdb-arm64-toolchain
+    project-type: pipeline
+    description: |
+      Rebuild the arm64/Debian13 MongoDB toolchain mirroring an operator-chosen upstream
+      x86_64 toolchain, and publish the arm64 Bazel tarballs to S3.
+      Managed by Jenkins Job Builder — edit jenkins/rebuild-toolchain.groovy, not the UI.
+      Parameters and options are declared in the pipeline script.
+
+      Needs: Jenkins credential REBUILDER_AWS_CRED (AWS Credentials kind) and an agent
+      labelled launcher-x64 with docker. The agent only runs terraform/awscli containers and
+      polls S3 for hours — the arm64 compile itself happens on an AWS spot instance.
+    concurrent: false
+    pipeline-scm:
+      scm:
+        - git:
+            # TODO: no remote yet; use inline job
+            url: 'git@github.com:percona/psmdb-toolchain-rebuilder.git'
+            credentials-id: 'github-ssh'
+            branches:
+              - 'main'
+      script-path: jenkins/rebuild-toolchain.groovy
+      lightweight-checkout: true
+
+# Inline variant, until the repo has remote.
+# JJB inlines on update, so prefer SCM.
+- job:
+    name: rebuild-psmdb-arm64-toolchain-local
+    project-type: pipeline
+    description: |
+      Same as rebuild-psmdb-arm64-toolchain but with the pipeline script inlined (no git
+      remote required). Temporary — prefer the SCM-backed job.
+    concurrent: false
+    dsl:
+      !include-raw: rebuild-toolchain.groovy
