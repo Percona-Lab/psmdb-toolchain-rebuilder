@@ -95,7 +95,7 @@ apt-get install -y -qq --no-install-recommends \
   libgmp-dev libmpfr-dev libmpc-dev libisl-dev zlib1g-dev libexpat1-dev \
   libssl-dev libffi-dev libncurses-dev libxml2-dev liblzma-dev libcrypt-dev \
   libsqlite3-dev \
-  python3 python3-dev pkg-config stow >/dev/null
+  python3 python3-dev pkg-config stow patchelf >/dev/null
 echo "[deps] installed; host glibc: $(getconf GNU_LIBC_VERSION 2>/dev/null || ldd --version | head -1)"
 
 # Upstream ships .info files, so we do.

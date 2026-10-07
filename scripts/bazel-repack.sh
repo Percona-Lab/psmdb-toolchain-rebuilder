@@ -120,6 +120,7 @@ build_gdb_tarball() {
   # leaves the merge of what ships
   find "${stage}/${c}" -xtype l -delete
   find "${stage}/${c}" -type d -empty -delete
+  bash "$(dirname "${BASH_SOURCE[0]}")/relativize-rpath.sh" "$stage" "$ROOT"
   local art="${OUT}/bazel_${c}_gdb-${DISTRO}-arm64-${REVISION}.tar.gz"
   echo "[gdb] packing ${art}"
   tar -C "$stage" -czf "$art" "${c}" stow

@@ -55,6 +55,25 @@ upload_log() {
 # net for failures; success uploads earlier
 trap 'rc=$?; upload_log; exit $rc' EXIT
 
+# needs min_size 0; never fatal
+scale_down() {
+    if aws autoscaling set-desired-capacity --auto-scaling-group-name "$ASG_NAME" --desired-capacity 0; then
+        log "requested ASG $ASG_NAME -> 0"
+    else
+        log "WARN: could not scale $ASG_NAME to 0 — instance stays up until torn down"
+    fi
+}
+
+# ── published output is immutable ───────────────────────────────────
+# .bzl files pin its sha256;
+# a rebuild never matches byte for byte.
+published() { aws s3 ls "s3://$S3_BUCKET/output/$ID/DONE" >/dev/null 2>&1; }
+if published; then
+    log "output/$ID/DONE exists — already published, not rebuilding"
+    scale_down
+    exit 0
+fi
+
 # ── attach + mount, also after a spot kill ──────────────────────────
 if ! mountpoint -q "$MOUNT"; then
     state=$(aws ec2 describe-volumes --volume-ids "$VOLUME_ID" \
@@ -128,6 +147,7 @@ OUTPUT_DIR="$MOUNT/out" PERSIST=1 REVISION="$REVISION" JOBS="$JOBS" CHAINS="$CHA
 # ── publish to our bucket ───────────────────────────────────────────
 OUT="$MOUNT/out"
 dst="s3://$S3_BUCKET/output/$ID"
+published && { log "output/$ID/DONE appeared meanwhile — not overwriting"; scale_down; exit 0; }
 # upstream's names with "-arm64" inserted
 for art in "$OUT/bazel_v4_toolchain-debian13-arm64-${REVISION}.tar.gz" \
            "$OUT/bazel_v5_toolchain-debian13-arm64-${REVISION}.tar.gz" \
@@ -143,9 +163,4 @@ log "log -> s3://$S3_BUCKET/logs/$ID/rebuild-${IID}.log"
 upload_log
 
 # ── done: scale the ASG to 0 (Jenkins also polls DONE) → instance terminates ──
-# needs min_size 0; never fatal, already published
-if aws autoscaling set-desired-capacity --auto-scaling-group-name "$ASG_NAME" --desired-capacity 0; then
-    log "requested ASG $ASG_NAME -> 0"
-else
-    log "WARN: could not scale $ASG_NAME to 0 — instance stays up until torn down"
-fi
+scale_down

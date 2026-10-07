@@ -82,12 +82,23 @@ pipeline {
                     def m = (env.UP_BASENAME =~ /[0-9a-f]{40}/)
                     if (!m) { error "cannot parse 40-hex toolchain id from ${env.UP_BASENAME}" }
                     env.TOOLCHAIN_ID = m[0]
+                    m = null // Matcher breaks CPS checkpoints
                     env.SCRIPTS_KEY  = "code/${env.TOOLCHAIN_ID}/scripts.tar.gz"
                     if (!env.UP_BASENAME.contains('debian13')) {
                         echo "WARNING: ${env.UP_BASENAME} is not a debian13 tarball; this job only builds debian13"
                     }
                     currentBuild.displayName = "deb13-arm64 ${env.TOOLCHAIN_ID}"
                     echo "id=${env.TOOLCHAIN_ID}"
+                    // published output is immutable; skip AWS
+                    def pub = "https://${env.BUCKET}.s3.${env.AWS_REGION}.amazonaws.com/output/${env.TOOLCHAIN_ID}"
+                    def code = sh(returnStdout: true,
+                                  script: "docker run --rm --entrypoint curl ${env.AWSCLI_IMAGE}" +
+                                          " -s -o /dev/null -w '%{http_code}' ${pub}/DONE").trim().readLines().last()
+                    if (code == '200') {
+                        currentBuild.description = ['bazel_v4_toolchain', 'bazel_v5_toolchain', 'bazel_v5_gdb']
+                            .collect { "${pub}/${it}-debian13-arm64-${env.TOOLCHAIN_ID}.tar.gz" }.join('\n')
+                        error "${env.TOOLCHAIN_ID} is already published, see the build description"
+                    }
                 }
             }
         }
@@ -159,6 +170,8 @@ pipeline {
             script {
                 if (params.KEEP_COMPUTE) {
                     echo 'KEEP_COMPUTE=true: leaving ASG + volume up'
+                } else if (!fileExists('terraform/.terraform')) {
+                    echo 'terraform never ran: nothing to tear down'
                 } else {
                     // compute only; LT and policy come back
                     withAws {
