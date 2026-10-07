@@ -14,22 +14,8 @@
     pipeline-scm:
       scm:
         - git:
-            # TODO: no remote yet; use inline job
-            url: 'git@github.com:percona/psmdb-toolchain-rebuilder.git'
-            credentials-id: 'github-ssh'
+            url: 'https://github.com/Percona-Lab/psmdb-toolchain-rebuilder.git'
             branches:
               - 'main'
       script-path: jenkins/rebuild-toolchain.groovy
       lightweight-checkout: true
-
-# Inline variant, until the repo has remote.
-# JJB inlines on update, so prefer SCM.
-- job:
-    name: rebuild-psmdb-arm64-toolchain-local
-    project-type: pipeline
-    description: |
-      Same as rebuild-psmdb-arm64-toolchain but with the pipeline script inlined (no git
-      remote required). Temporary — prefer the SCM-backed job.
-    concurrent: false
-    dsl:
-      !include-raw: rebuild-toolchain.groovy
